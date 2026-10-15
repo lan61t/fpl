@@ -1,0 +1,4 @@
+data/hist/
+data/raw/
+__pycache__/
+*.pyc
