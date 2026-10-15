@@ -276,12 +276,17 @@ function bindSquad(){
     runBuild(st.fresh,st.hz,[]).then(b=>{st.squad=b.ids;st.sell={};b.ids.forEach(i=>st.sell[i]=BY.get(i).c);st.bank=Math.round((st.fresh-b.cost)*10)/10;save();render()})};
 }
 // ---------- tab: transfers ----------
-let tcache={key:'',res:null,wc:null},roll_=false;
+let tcache={key:'',res:null,wc:null},roll_=false,BAR=0;
+// A move is only recommended when it adds at least BAR_PER_GW expected points per gameweek of look-ahead, after any hit.
+// (Season simulation, GW6-38 of 2023/24-2025/26: this rule beat moving on any small gain, with far fewer points lost to hits.)
+const BAR_PER_GW=2.5;
+const horizonW=hz=>DISC.slice(0,hz).reduce((a,b)=>a+b,0);
+const tier=m=>m.net>=BAR?['Clear gain','cap']:(m.net>=0.4*BAR&&m.hit===0?['Marginal','dtd']:['Below the bar','bn']);
 function needSquad(){return `<div class="card"><div class="warn">Add all 15 players on the My squad tab first (or build a squad there).</div></div>`}
 function moveHTML(m,i){i=roll_?99:i;
   const outs=m.outs.map(id=>{const p=BY.get(id);return `<b>${esc(p.n)}</b> <span class="mut small">${TM[p.t].s} ${f1(sellOf(st,id))}</span>`}).join(' + ');
   const ins=m.ins.map(id=>{const p=BY.get(id);return `<b>${esc(p.n)}</b> ${badge(p)}<span class="mut small"> ${TM[p.t].s} ${f1(p.c)} · own ${p.o}%</span><br>${fxChips(p,0,4)}`}).join(' + ');
-  return `<div class="item ${i===0?'first':''}"><div class="nm">${outs} &rarr; ${ins}<span class="sub">Bank after: £${f1(m.bank)}m${m.hit?` · hit −${m.hit}`:' · free'}</span></div>
+  return `<div class="item ${i===0?'first':''}"><div class="nm">${outs} &rarr; ${ins}<span class="sub"><span class="b ${tier(m)[1]}" style="margin-left:0">${tier(m)[0]}</span> Bank after: £${f1(m.bank)}m${m.hit?` · hit −${m.hit}`:' · free'}</span></div>
    <div style="text-align:right"><div class="${m.net>0?'pos-g':'neg-g'}">${sg(m.net)} xP</div><div class="small mut">${st.hz} GW${st.hz>1?'s':''}, after hit</div></div>
    <button class="sm" data-apply="${m.outs.join(',')}|${m.ins.join(',')}|${m.bank}">Apply</button></div>`;
 }
@@ -292,14 +297,22 @@ function viewTransfers(){
     return `<div class="card"><div class="small mut">Searching all single and double transfers...</div></div>`}
   const r=tcache.res;if(!r)return `<div class="card"><div class="small mut">Searching...</div></div>`;
   const best=[...r.one,...r.two].sort((a,b)=>b.net-a.net)[0];
-  const roll=!best||best.net<0.8;roll_=roll;
+  const all=[...r.one,...r.two];
+  const W=horizonW(st.hz);BAR=BAR_PER_GW*W;
   const hzTxt=st.hz+' gameweek'+(st.hz>1?'s':'');
-  const head=roll?`<div class="ok"><b>Recommendation: use no transfer and keep your free transfer${st.ft>1?'s':''}.</b> ${best&&best.net>0?`The best move adds only ${sg(best.net)} xP over ${hzTxt}, which is within the model's noise.`:`No single or double transfer beats your current squad over ${hzTxt}${best?` (the best option scores ${sg(best.net)} xP)`:''}.`}</div>`
-   :`<div class="ok"><b>Recommendation: ${best.outs.length>1?'make '+best.outs.length+' transfers':'make 1 transfer'}.</b> Best move is worth ${sg(best.net)} xP over ${hzTxt} after ${best.hit?'the '+best.hit+'-point hit':'costs'}. Treat gains under about 2 xP as close calls.</div>`;
+  const clear=!!best&&best.net>=BAR;
+  const bestFree=all.filter(m=>m.hit===0).sort((a,b)=>b.net-a.net)[0];
+  const capFree=!clear&&st.ft>=5&&!!bestFree&&bestFree.net>0;   // at the 5-transfer cap rolling gains nothing, so a free move costs nothing
+  roll_=!clear&&!capFree;
+  const barTxt=`${f1(BAR)} xP (${BAR_PER_GW} per gameweek of look-ahead)`;
+  let head;
+  if(clear)head=`<div class="ok"><b>Recommendation: ${best.outs.length>1?'make '+best.outs.length+' transfers':'make 1 transfer'}.</b> The best move is worth ${sg(best.net)} xP over ${hzTxt} after ${best.hit?'the '+best.hit+'-point hit':'costs'}, above the bar of ${barTxt}.</div>`;
+  else if(capFree)head=`<div class="ok"><b>Recommendation: use a free transfer.</b> You are at the 5 free-transfer cap, so keeping it gains nothing. The best free move adds ${sg(bestFree.net)} xP over ${hzTxt} (below the usual bar of ${barTxt}, but it costs nothing).</div>`;
+  else head=`<div class="ok"><b>Recommendation: use no transfer and keep your free transfer${st.ft>1?'s':''}.</b> ${best&&best.net>0?`The best move adds ${sg(best.net)} xP over ${hzTxt}, below the bar of ${barTxt}.`:`No single or double transfer beats your current squad over ${hzTxt}.`} Free transfers build up to 5, so waiting costs nothing. Only take a hit when a move clears the bar after the ${HIT}-point cost.</div>`;
   return `<div class="wrap" style="padding:0">${head}
    <div class="grid"><div class="card"><h2>Best single transfers</h2><div class="rec">${r.one.slice(0,6).map(moveHTML).join('')||'<span class="mut small">No affordable single transfer.</span>'}</div>
    <h3>Best double transfers ${st.ft<2?'(costs a 4-point hit)':''}</h3><div class="rec">${r.two.slice(0,5).map((m,i)=>moveHTML(m,99)).join('')||'<span class="mut small">No affordable double transfer.</span>'}</div>
-   <div class="note">Score = expected points of your best XI each gameweek (captain counted twice, bench at ${Math.round(BW*100)}%), summed over the look-ahead with later weeks discounted. Hits cost ${HIT} points per extra transfer. "Apply" only changes this app; make the move on the FPL site yourself.</div></div>
+   <div class="note">Score = expected points of your best XI each gameweek (captain counted twice, bench at ${Math.round(BW*100)}%), summed over the look-ahead with later weeks discounted. Hits cost ${HIT} points per extra transfer. The bar is ${barTxt}; in a three-season simulation this rule scored about 40 points more than moving on any small gain, and lost about 85 fewer points to hits. "Apply" only changes this app; make the move on the FPL site yourself.</div></div>
    <div class="card"><h2>Wildcard / Free Hit check</h2><div class="small mut">Builds the best possible squad from your total funds (squad value + bank) and compares it with your current squad.</div>
    <div class="row2"><button class="primary" id="wcgo">Test a full rebuild</button></div><div id="wcout">${tcache.wc?wcHTML(tcache.wc):''}</div></div></div></div>`;
 }
@@ -307,7 +320,7 @@ function wcHTML(w){
   const gain=w.score-w.base;
   return `<div class="kv"><span class="mut">Rebuilt squad</span><span>${f1(w.score)} xP</span><span class="mut">Your squad</span><span>${f1(w.base)} xP</span><span class="mut">Difference</span><span class="${gain>0?'pos-g':'neg-g'}">${sg(gain)} xP over ${st.hz} GW</span><span class="mut">Players changed</span><span>${w.changed} of 15</span></div>
   <div class="small" style="margin-top:6px">${w.ids.map(i=>esc(BY.get(i).n)).join(', ')}</div>
-  <div class="note">${gain<8?'A small gap: normal transfers will do. Keep the chip.':'A big gap. If you do not expect to fix it with two or three transfers, this is when a chip pays off.'}</div>
+  <div class="note">${gain<3*horizonW(st.hz)?'A small gap: normal transfers will do. Keep the chip.':'A big gap. If you do not expect to fix it with two or three transfers, this is when a chip pays off.'}</div>
   <div class="row2"><button class="sm" id="wcuse">Use this squad in the app</button></div>`;
 }
 function bindTransfers(){
@@ -446,6 +459,7 @@ function viewAbout(){
   <div class="small" style="line-height:1.6;max-width:760px">
   <p><b>Expected points (xP)</b> for each player and gameweek blends two models: 75% <i>Model B</i> and 25% <i>Model A</i>, then corrects the result for each position using how past predictions compared with real scores. <i>Model A</i> multiplies chance of playing by points per 90 minutes (last season, this season so far and a prior by position and price) and a fixture adjustment. <i>Model B</i> predicts each scoring event separately: appearance points, goals and assists from expected goals and assists, clean sheets and goals conceded from team strength, saves, bonus, cards and defensive contribution points. It also uses a minutes model fitted on about 110,000 past player-weeks (recent minutes, how many of the last 5 games he played 60+, season share, last season's minutes, position). Injured and doubtful players are scaled by the FPL's own chance of playing. Home games get +8%, away games -8%.</p>
   <p><b>What was tested</b> (every prediction made before the gameweek, GW6 to GW38): Model A beat a plain last-3-weeks form average (2019/20 to 2025/26: captain pick 7.1 points against 5.8; top 15 picks 5.0 against 4.3). On 2023/24 to 2025/26 the blend ranked players better than Model A alone (rank correlation about 0.47 against 0.45). Without the position correction, the very best predictions were too high (goalkeepers by about 2 points, defenders and forwards by about 13%); with it, predicted and actual match. The correction lifted the captain pick from 7.0 to 7.6 points, which is borderline significant because several variants were tried. Most of Model B's gain comes from its minutes model, not from expected goals. Spending on premium players beat capping prices, and no fixed formation beat letting the optimiser choose.</p>
+  <p><b>Season simulation</b> (GW6 to GW38 of 2023/24, 2024/25 and 2025/26, every decision made with only the information available before the deadline, with selling prices, free transfers, hits, the 3-per-club rule and auto-subs, no chips): a manager following the model's weekly transfers scored about 1,940 points on average against about 1,630 for one chasing the last three weeks' form, ahead in all three seasons. A squad built by the model and never changed scored the same as form, so the edge comes from the weekly transfers. Taking fewer hits did better: moving only for a gain of at least 2.5 expected points per gameweek made about 35 transfers and lost about 11 points to hits, against about 56 transfers and 95 points lost when moving on small gains. That is the bar this app uses. These results are optimistic: three seasons, one path each, some settings tuned on the same seasons, and no team news or price-timing effects. Simple chip rules did not help in the simulation, so chip advice here is only a guide.</p>
   <p><b>What it cannot do:</b> predict injuries or rotation it has not been told about, or beat luck. The strongest single-week signals are minutes and captaincy. Even a good captain pick averaged only about 7 points. This is a decision aid, not a guarantee, and gains under about 2 xP are within the noise.</p>
   <p><b>Updates:</b> a scheduled job on GitHub re-downloads the FPL data and re-runs the model every few hours, and publishes the result as <code>data.json</code>. This page reads that file when it opens and again every 30 minutes; the Check for updates button looks right away. Prices, injury flags and fixtures can still be a few hours old, and you should check the club press conferences before a deadline. The app cannot read your FPL account, so squad, bank and free transfers are entered by hand and saved in this browser only.</p>
   <h3>Backup and restore</h3>
