@@ -1,0 +1,45 @@
+name: Update FPL data
+
+# Refreshes data.json and index.html, then commits them. GitHub Pages serves the repository root.
+on:
+  schedule:
+    - cron: '23 */3 * * *'      # every 3 hours (UTC)
+  workflow_dispatch: {}         # "Run workflow" button in the Actions tab
+  push:
+    paths: ['src/**', 'pipeline/**', 'data/calib.json', 'data/minutes_weights.json', '.github/workflows/update.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fpl-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Cache downloaded history and live files
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/hist
+            data/raw/live
+          key: fpl-data-${{ github.run_id }}
+          restore-keys: fpl-data-
+      - name: Refresh data and rebuild the site
+        run: python pipeline/update.py
+      - name: Commit if anything changed
+        run: |
+          git config user.name "fpl-data-bot"
+          git config user.email "fpl-data-bot@users.noreply.github.com"
+          git add data.json index.html
+          if git diff --cached --quiet; then echo "No changes"; else git commit -m "Update data $(date -u +'%Y-%m-%d %H:%M') UTC" && git push; fi
