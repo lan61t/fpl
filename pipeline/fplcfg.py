@@ -11,9 +11,19 @@ H=6   # gameweeks predicted ahead
 VAASTAV='https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data/'
 FPL='https://fantasy.premierleague.com/api/'
 
-def state(bootstrap):
-    """cur = last finished gameweek (data cut-off); gw0 = first gameweek still open for transfers."""
+def state(bootstrap,fixtures=None):
+    """cur = last completed gameweek (data cut-off); gw0 = first gameweek still open for transfers.
+    A gameweek counts as completed as soon as every match is over (finished or provisionally finished), because FPL
+    only sets its own 'finished' flag a day or so later, and the model should learn from those results straight away."""
     ev=bootstrap['events']
-    fin=[e['id'] for e in ev if e['finished']]; cur=max(fin) if fin else 0
+    done={e['id'] for e in ev if e['finished']}
+    if fixtures:
+        byev={}
+        for f in fixtures:
+            if f.get('event'): byev.setdefault(f['event'],[]).append(f)
+        for g,fs in byev.items():
+            if fs and all(x.get('finished') or x.get('finished_provisional') for x in fs): done.add(g)
+    cur=0
+    while cur+1 in done: cur+=1
     nxt=[e['id'] for e in ev if e.get('is_next')]
     return cur,(nxt[0] if nxt else cur+1)

@@ -3,7 +3,7 @@ import json, numpy as np, pandas as pd, warnings
 warnings.filterwarnings('ignore')
 from fplcfg import *
 b=json.loads((RAW/'bootstrap.json').read_text(encoding='utf8')); fx=json.loads((RAW/'fixtures.json').read_text(encoding='utf8'))
-CUR,GW0=state(b)
+CUR,GW0=state(b,fx)
 els=pd.DataFrame(b['elements']); teams=pd.DataFrame(b['teams']).set_index('id')
 els['pos']=els.element_type.map({1:'GK',2:'DEF',3:'MID',4:'FWD'}); els['price']=els.now_cost/10
 rows=[]
@@ -37,7 +37,7 @@ nm=dict(zip(lt.id,lt.name)); last={nm[t]:(gf[t]/gp[t],ga[t]/gp[t]) for t in gp}
 LG=np.mean([v[0] for v in last.values()])
 cf={t:0 for t in teams.index};ca=dict(cf);cg=dict(cf)
 for f in fx:
-    if f['finished'] and f['event'] and f['event']<=CUR:
+    if (f['finished'] or f.get('finished_provisional')) and f['event'] and f['event']<=CUR:
         for t,g,o in((f['team_h'],f['team_h_score'],f['team_a_score']),(f['team_a'],f['team_a_score'],f['team_h_score'])):
             cf[t]+=g;ca[t]+=o;cg[t]+=1
 ATT={};DEF={};K=30

@@ -2,7 +2,7 @@
 import json, collections, datetime, numpy as np, pandas as pd
 from fplcfg import *
 b=json.loads((RAW/'bootstrap.json').read_text(encoding='utf8')); fx=json.loads((RAW/'fixtures.json').read_text(encoding='utf8'))
-CUR,GW0=state(b); els=pd.read_pickle(RAW/'players_model.pkl')
+CUR,GW0=state(b,fx); els=pd.read_pickle(RAW/'players_model.pkl')
 cols=[f'xp{i}' for i in range(H)]; tm={t['id']:t for t in b['teams']}; pos={1:0,2:1,3:2,4:3}
 players=[]
 for r in els.itertuples():

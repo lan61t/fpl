@@ -5,7 +5,7 @@ from fplcfg import *
 import minutes_lib as ml
 PMIN=450
 b=json.loads((RAW/'bootstrap.json').read_text(encoding='utf8')); fx=json.loads((RAW/'fixtures.json').read_text(encoding='utf8'))
-CUR,GW0=state(b)
+CUR,GW0=state(b,fx)
 els=pd.read_pickle(RAW/'players_model.pkl'); teams=pd.DataFrame(b['teams']).set_index('id')
 W=json.loads((DATA/'minutes_weights.json').read_text()); w60=np.array(W['w60']); wan=np.array(W['wan'])
 rows=[]
