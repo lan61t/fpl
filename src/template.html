@@ -179,6 +179,18 @@ function initHeader(){
     $('gwclock').textContent=t;$('gwclock').title=dl.toLocaleString()};
   tick();setInterval(tick,30000);
 }
+// the owner's team is kept in my_team.json next to this page; it is loaded on a first visit with an empty squad, or on request
+function loadMyTeam(force){
+  return fetch('my_team.json?'+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
+    if(!j||!Array.isArray(j.players))return false;
+    const ids=j.players.map(p=>p.i).filter(i=>BY.has(i));
+    if(ids.length!==15||!validSquad(ids))return false;
+    if(!force&&st.squad.length>0)return true;
+    st.squad=ids;st.sell={};ids.forEach(i=>st.sell[i]=BY.get(i).c);
+    if(j.bank!=null)st.bank=j.bank;if(j.ft!=null)st.ft=j.ft;
+    save();render();return true;
+  }).catch(()=>false);
+}
 function renderTabs(){
   $('tabs').innerHTML=TABS.map(([k,l])=>`<button data-tab="${k}" class="${st.tab===k?'on':''}">${l}</button>`).join('');
 }
@@ -263,7 +275,7 @@ function viewSquad(){
   </div>
   <div class="card" style="margin-top:12px"><h2>Start from scratch</h2>
     <div class="small mut">Builds the best 15 for the chosen look-ahead, using the budget below. Good for a first squad, or to see what a Wildcard would pick.</div>
-    <div class="row2"><label class="f">Budget (£m)<input id="fresh" type="number" step="0.1" min="80" max="150" value="${st.fresh}"></label><button class="primary" id="build">Build best squad</button><button id="clear">Clear squad</button></div>
+    <div class="row2"><label class="f">Budget (£m)<input id="fresh" type="number" step="0.1" min="80" max="150" value="${st.fresh}"></label><button class="primary" id="build">Build best squad</button><button id="clear">Clear squad</button><button id="loadteam" title="Load the team saved in my_team.json on the site">Load my saved team</button></div>
     <div id="buildmsg" class="small mut"></div></div></div></div>`;
 }
 function bindSquad(){
@@ -272,6 +284,7 @@ function bindSquad(){
   document.querySelectorAll('input[data-chip]').forEach(c=>c.onchange=()=>{st.chips[c.dataset.chip]=c.checked;save()});
   $('fresh').onchange=e=>{st.fresh=+e.target.value||100;save()};
   $('clear').onclick=()=>{st.squad=[];st.sell={};save();render()};
+  $('loadteam').onclick=()=>{$('buildmsg').textContent='Loading...';loadMyTeam(true).then(ok=>{if(!ok){const m=$('buildmsg');if(m)m.textContent='No saved team found on the site.'}})};
   $('build').onclick=()=>{$('build').disabled=true;$('buildmsg').textContent='Searching... this takes a few seconds.';
     runBuild(st.fresh,st.hz,[]).then(b=>{st.squad=b.ids;st.sell={};b.ids.forEach(i=>st.sell[i]=BY.get(i).c);st.bank=Math.round((st.fresh-b.cost)*10)/10;save();render()})};
 }
@@ -541,6 +554,6 @@ function render(){
   renderTabs();const v=VIEWS[st.tab]||VIEWS.squad;
   $('view').innerHTML=v[0]();v[1]&&v[1]();
 }
-initHeader();render();setSync('Saved in this browser (use Backup on the About tab to move it)');initSync();initUpdates();
+initHeader();render();setSync('Saved in this browser (use Backup on the About tab to move it)');initSync();initUpdates();if(st.squad.length===0)loadMyTeam(false);
 }
 </script>
