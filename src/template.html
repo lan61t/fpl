@@ -466,22 +466,22 @@ function viewTrack(){
   const diff=paper?S.paper_net-S.avg_manager:0;
   const rows=E.map(e=>{const pp=e.paper;
     return `<tr><td>GW${e.gw}${e.final?'':' <span class="b dtd" title="FPL has not marked this gameweek final yet; points can still change slightly">prov.</span>'}</td>
-     <td class="num">${f(e.model.sp,3)}</td><td class="num mut">${f(e.form.sp,3)}</td><td class="num">${f(e.model.top15,1)}</td><td class="num mut">${f(e.form.top15,1)}</td><td class="num">${f(e.model.mae,2)}</td>
+     <td class="num">${f(e.model.sp,3)}</td><td class="num mut">${e.first?f(e.first.sp,3):'-'}</td><td class="num mut">${f(e.form.sp,3)}</td><td class="num">${f(e.model.top15,1)}</td><td class="num mut">${f(e.form.top15,1)}</td><td class="num">${f(e.model.mae,2)}</td>
      <td>${esc(e.captain.name)} <b>${e.captain.pts}</b></td>
      <td class="num" title="${pp?esc((pp.moves.join('; ')||'no transfers')+' | '+pp.rule):''}">${pp?`<b>${pp.net}</b>${pp.hits?` <span class="mut">(−${pp.hits} hit)</span>`:''}`:'-'}</td>
      <td class="num">${e.avg==null?'-':e.avg}</td><td class="num mut">${e.highest==null?'-':e.highest}</td></tr>`}).join('');
   return `<div class="wrap" style="padding:0"><div class="card"><h2>Track record (${S.weeks} gameweek${S.weeks>1?'s':''} scored)</h2>
    <div class="small mut">The predictions are saved automatically at the last update before each deadline, then scored against the real points once the gameweek ends. Nothing here is edited afterwards.</div>
    <div class="kv" style="margin-top:8px">
-    <span class="mut">Rank correlation with real points</span><span><b>${f(S.sp_model,3)}</b> model &middot; ${f(S.sp_form,3)} last-3-weeks form &middot; ${f(S.sp_own,3)} ownership</span>
-    <span class="mut">Average error per player</span><span>${f(S.mae_model,2)} model &middot; ${f(S.mae_form,2)} form</span>
-    <span class="mut">Top 15 picks, average points</span><span><b>${f(S.top15_model,2)}</b> model &middot; ${f(S.top15_form,2)} form</span>
+    <span class="mut">Rank correlation with real points</span><span><b>${f(S.sp_model,3)}</b> final prediction &middot; ${S.sp_first==null?'':f(S.sp_first,3)+' first prediction &middot; '}${f(S.sp_form,3)} last-3-weeks form &middot; ${f(S.sp_own,3)} ownership</span>
+    <span class="mut">Average error per player</span><span>${f(S.mae_model,2)} final &middot; ${S.mae_first==null?'':f(S.mae_first,2)+' first &middot; '}${f(S.mae_form,2)} form</span>
+    <span class="mut">Top 15 picks, average points</span><span><b>${f(S.top15_model,2)}</b> final &middot; ${S.top15_first==null?'':f(S.top15_first,2)+' first &middot; '}${f(S.top15_form,2)} form</span>
     <span class="mut">Captain pick, average points</span><span>${f(S.captain_pts,1)}</span>
     ${paper?`<span class="mut">Paper manager (follows this app's advice)</span><span><b>${S.paper_net}</b> points over ${S.paper_weeks} gameweek${S.paper_weeks>1?'s':''} (after ${S.paper_hits} points of hits) against <b>${S.avg_manager}</b> for the average manager: <b class="${diff>=0?'pos-g':'neg-g'}">${diff>=0?'+':''}${diff}</b></span>`:''}
    </div>
    <div class="note">${S.weeks<8?'This is too few weeks to judge the model; past-season tests ran over hundreds of gameweeks. Treat early numbers as a check that nothing is broken, not as proof.':'Compare the model with the form and ownership columns; a model that is only matching them is not adding value.'}</div></div>
-   <div class="card"><h2>Gameweek by gameweek</h2><div class="scroll"><table><thead><tr><th>GW</th><th class="num">Rank corr.</th><th class="num">Form</th><th class="num">Top 15</th><th class="num">Form</th><th class="num">Error</th><th>Captain</th><th class="num">Paper team</th><th class="num">Average</th><th class="num">Top score</th></tr></thead><tbody>${rows}</tbody></table></div>
-   <div class="note">Rank corr. = how well the predicted order matched the real order of points among players who played in the previous three gameweeks (1.0 is perfect). Top 15 = average points of the 15 players the model rated highest. Paper team = a virtual squad that starts at GW8 with 100.0m and makes exactly the moves the Transfers tab recommends, with captain and bench chosen by the model; hover its points to see the moves. Last updated ${esc(trackData.updated||'')}.</div></div></div>`;
+   <div class="card"><h2>Gameweek by gameweek</h2><div class="scroll"><table><thead><tr><th>GW</th><th class="num">Rank corr.</th><th class="num">First</th><th class="num">Form</th><th class="num">Top 15</th><th class="num">Form</th><th class="num">Error</th><th>Captain</th><th class="num">Paper team</th><th class="num">Average</th><th class="num">Top score</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="note">Rank corr. = how well the predicted order matched the real order of points among players who played in the previous three gameweeks (1.0 is perfect). First = the same score for the very first prediction made for that gameweek, before late news and price changes; the gap to the final column shows what the late information was worth. Top 15 = average points of the 15 players the model rated highest. Paper team = a virtual squad that starts at GW8 with 100.0m and makes exactly the moves the Transfers tab recommends, with captain and bench chosen by the model; hover its points to see the moves. Last updated ${esc(trackData.updated||'')}.</div></div></div>`;
 }
 // ---------- tab: about ----------
 function viewAbout(){
