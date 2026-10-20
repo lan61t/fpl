@@ -16,8 +16,9 @@ if(S&&S.pending&&now>=Date.parse(S.pending.deadline)){
   if(fs.existsSync(f)){const p=JSON.parse(fs.readFileSync(f,'utf8'));p.pending=false;fs.writeFileSync(f,JSON.stringify(p))}
   S.pending=null;
 }
-if(S&&S.locked_gw>=G){console.log('GW',G,'already locked; nothing to do');process.exit(0)}
-if(Date.parse(D.deadline)<=now){console.log('deadline for GW',G,'has passed; waiting for the next gameweek');process.exit(0)}
+const persist=()=>{if(S)fs.writeFileSync(stPath,JSON.stringify(S))};
+if(S&&S.locked_gw>=G){persist();console.log('GW',G,'already locked; nothing to do');process.exit(0)}
+if(Date.parse(D.deadline)<=now){persist();console.log('deadline for GW',G,'has passed; waiting for the next gameweek');process.exit(0)}
 // players that left the data (unavailable, no minutes) must still exist for the logic: add zero-xP stubs
 const meta=(S&&S.meta)||{};
 if(S)for(const id of S.squad){if(!D.players.find(p=>p.i===id)){const m=meta[id]||{n:'?',p:1,t:1};D.players.push({i:id,n:m.n,t:m.t,p:m.p,c:(S.bp[id]||50)/10,o:0,s:'u',ch:0,nw:'',pts:0,mn:0,f:0,x:[0,0,0,0,0,0]})}}
@@ -27,7 +28,8 @@ const HZ=4,BAR_PER_GW=2.5;
 const W=[1,.95,.9,.85,.8,.75].slice(0,HZ).reduce((a,b)=>a+b,0),BAR=BAR_PER_GW*W;
 const price=id=>Math.round(L.BY.get(id).c*10);
 let pick;
-if(!S){
+// no locked squad yet (first gameweek still pending): keep rebuilding the initial squad until its deadline passes
+if(!S||!S.squad||S.squad.length!==15){
   // first gameweek: build the best squad for 100.0m
   const b=L.buildSquad(100,HZ);const bp={};b.ids.forEach(i=>bp[i]=price(i));
   const bank=1000-b.ids.reduce((s,i)=>s+price(i),0);
