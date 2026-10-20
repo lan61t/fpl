@@ -7,7 +7,7 @@ Enter your squad, bank and free transfers, and it suggests transfers, a lineup a
 
 ## How the numbers update
 
-A scheduled GitHub Actions job (`.github/workflows/update.yml`) runs every 3 hours:
+A scheduled GitHub Actions job (`.github/workflows/update.yml`) runs every hour:
 
 1. downloads the official FPL data (players, fixtures, live gameweek stats) and last season's open data,
 2. re-runs the model,
@@ -16,6 +16,12 @@ A scheduled GitHub Actions job (`.github/workflows/update.yml`) runs every 3 hou
 The page reads `data.json` when it opens and every 30 minutes, and has a **Check for updates** button.
 You can also run the job on demand: repository **Actions** tab, **Update FPL data**, **Run workflow**.
 Your squad, bank and rivals are saved in your browser only. Use **Backup** on the About tab to move them to another device.
+
+## Track record
+
+Every run saves the predictions for the next gameweek (`log/pred_gwNN.json`); the last copy saved before the deadline is the one that counts.
+After the gameweek, `pipeline/track.py` scores them against the real points (rank correlation, average error, top-15 picks, captain) next to simple baselines (last-3-weeks form, ownership).
+A *paper manager* (`pipeline/paper_manager.js`) follows exactly the advice the Transfers tab gives, starting at GW8 with 100.0m, and is scored against the average manager. Results are in `log/track_record.json` and on the **Track record** tab. Nothing is edited after the fact.
 
 ## The model in one paragraph
 
@@ -36,7 +42,8 @@ python -m http.server 8000         # then open http://localhost:8000/
 |---|---|
 | `index.html`, `data.json` | The built site and its data (generated; do not edit by hand) |
 | `src/template.html`, `src/logic.js` | The page and its logic (edit these) |
-| `pipeline/` | `fetch.py`, `model.py`, `model2.py`, `export.py`, `build_site.py`; `update.py` runs them all |
+| `pipeline/` | `fetch.py`, `model.py`, `model2.py`, `export.py`, `build_site.py`, `snapshot.py`, `paper_manager.js`, `track.py`; `update.py` runs them all |
+| `log/` | Saved predictions, paper-manager picks and the track record (written by the job) |
 | `data/calib.json`, `data/minutes_weights.json` | Fitted constants (calibration and minutes model), committed |
 
 ## At the start of a new season
