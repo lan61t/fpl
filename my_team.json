@@ -1,0 +1,69 @@
+{
+ "updated": "2026-10-20",
+ "gw": 8,
+ "note": "Squad given by the owner on 2026-10-20: bank 0.0m and 2 free transfers. Edit this file to change the saved team.",
+ "bank": 0.0,
+ "ft": 2,
+ "players": [
+  {
+   "i": 572,
+   "n": "Tzolakis"
+  },
+  {
+   "i": 385,
+   "n": "Trafford"
+  },
+  {
+   "i": 115,
+   "n": "De Cuyper"
+  },
+  {
+   "i": 8,
+   "n": "Calafiori"
+  },
+  {
+   "i": 173,
+   "n": "Thomas"
+  },
+  {
+   "i": 176,
+   "n": "Dasilva"
+  },
+  {
+   "i": 305,
+   "n": "Davis"
+  },
+  {
+   "i": 426,
+   "n": "B.Fernandes"
+  },
+  {
+   "i": 427,
+   "n": "Mbeumo"
+  },
+  {
+   "i": 124,
+   "n": "Groß"
+  },
+  {
+   "i": 12,
+   "n": "Saka"
+  },
+  {
+   "i": 335,
+   "n": "Stach"
+  },
+  {
+   "i": 411,
+   "n": "Haaland"
+  },
+  {
+   "i": 316,
+   "n": "Emersonn"
+  },
+  {
+   "i": 194,
+   "n": "Thomas-Asante"
+  }
+ ]
+}
