@@ -34,11 +34,15 @@ def review(g):
         a=act.get(p['i'],(0,0)); q=prev.get(p['i'],{'pts':0,'min':0,'n':0})
         rows.append(dict(id=p['i'],name=p['n'],pos=p['p'],model=p['x'][0],old=p.get('old'),comp=p.get('comp'),raw=p.get('raw'),own=p['o'],
             form=(q['pts']/max(q['n'],1)),pmin=q['min'],act=a[0],mins=a[1]))
+    ff=LOG/f'first_gw{g:02d}.json'
+    firstx={}
+    if ff.exists(): firstx={p['i']:p['x'][0] for p in json.loads(ff.read_text(encoding='utf8'))['players']}
+    for r in rows: r['first']=firstx.get(r['id'])
     df=pd.DataFrame(rows); reg=df[df.pmin>0]
     if len(reg)<50: return None
     out=dict(gw=g,saved=snap['saved'],n=int(len(reg)),final=bool(EV[g]['finished']),avg=EV[g].get('average_entry_score'),highest=EV[g].get('highest_score'),
         model=metrics(reg,'model'),form=metrics(reg,'form'),own=metrics(reg,'own'))
-    for c in ('old','comp','raw'):
+    for c in ('old','comp','raw','first'):
         if reg[c].notna().all(): out[c]=metrics(reg,c)
     cap=df.sort_values('model',ascending=False).iloc[0]
     out['captain']=dict(name=cap['name'],pred=round(float(cap.model),2),pts=int(cap.act),rank=int((df.act>cap.act).sum()+1))
@@ -79,7 +83,7 @@ def avg(path):
         if x is not None: v.append(x)
     return round(float(np.mean(v)),3) if v else None
 pp=[e['paper'] for e in entries if e.get('paper')]
-summary=dict(weeks=len(entries),sp_model=avg(['model','sp']),sp_form=avg(['form','sp']),sp_own=avg(['own','sp']),
+summary=dict(weeks=len(entries),sp_model=avg(['model','sp']),sp_first=avg(['first','sp']),top15_first=avg(['first','top15']),mae_first=avg(['first','mae']),sp_form=avg(['form','sp']),sp_own=avg(['own','sp']),
     mae_model=avg(['model','mae']),mae_form=avg(['form','mae']),top15_model=avg(['model','top15']),top15_form=avg(['form','top15']),
     captain_pts=avg(['captain','pts']),paper_weeks=len(pp),paper_net=sum(p['net'] for p in pp),paper_hits=sum(p['hits'] for p in pp),
     avg_manager=sum(e['avg'] for e in entries if e.get('paper') and e.get('avg')) if pp else 0)

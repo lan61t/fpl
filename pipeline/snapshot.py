@@ -17,6 +17,10 @@ for p in d['players']:
     rows.append(dict(i=p['i'],n=p['n'],p=p['p'],t=p['t'],c=p['c'],o=p['o'],s=p['s'],ch=p['ch'],x=p['x'],
         old=round(float(r.xp_old0),2),comp=round(float(r.xp_comp0),2),raw=round(float(r.xp_raw0),2)))
 snap=dict(gw=gw0,saved=d['generated'],deadline=deadline,cur=d['cur'],players=rows)
+first=LOG/f'first_gw{gw0:02d}.json'
+if not first.exists():      # the very first prediction made for this gameweek; never overwritten
+    first.write_text(json.dumps(dict(gw=gw0,saved=d['generated'],players=[dict(i=p['i'],x=p['x']) for p in rows]),separators=(',',':')),encoding='utf8')
+    print('first prediction saved for GW',gw0)
 dest=LOG/f'pred_gw{gw0:02d}.json'
 def body(o): return json.dumps({k:v for k,v in o.items() if k!='saved'},sort_keys=True,separators=(',',':'))
 if dest.exists() and body(json.loads(dest.read_text(encoding='utf8')))==body(snap):
