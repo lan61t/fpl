@@ -75,7 +75,7 @@ label.f{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--mu
   <span id="gwclock" class="clock">-</span>
   <label class="small mut">Look ahead <select id="hz"></select></label>
   <span class="small mut" id="asof"></span>
-  <button class="sm" id="upd" title="Look for newer data on the site">Check for updates</button><span class="small" id="updmsg"></span>
+  <button class="sm primary" id="rf" title="Paste your team from the FPL site after you change it">Refresh my team</button><button class="sm" id="upd" title="Look for newer data on the site">Check for updates</button><span class="small" id="updmsg"></span>
   <span class="small" id="sync" title="Where your squad is saved"></span>
 </header>
 <div class="wrap">
@@ -92,6 +92,7 @@ label.f{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--mu
   <div style="display:flex;justify-content:space-between;align-items:center"><h2 id="imtitle" style="margin:0;font-size:15px">Paste squad from the FPL site</h2><button id="imclose">Close</button></div>
   <div class="small mut">On the FPL site open the team's <b>Points</b> page (or Pick Team). Click on the page, press Ctrl+A then Ctrl+C, and paste below. The app finds the player names and ignores everything else. Check the list before applying.</div>
   <textarea id="imt" rows="5" placeholder="Paste here" style="width:100%;font:12px var(--mono);background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px"></textarea>
+  <div class="row2" id="imme" style="display:none"><label class="f">Bank (£m)<input id="imbank" type="number" step="0.1" min="0" style="width:90px"></label><label class="f">Free transfers<select id="imft"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label><span class="small mut">Filled in from the pasted page when it can be found. Check both.</span></div>
   <div id="imv" class="scroll small"></div>
   <div class="row2" style="justify-content:flex-end"><span id="imstat" class="small mut" style="margin-right:auto"></span><button id="imcancel">Cancel</button><button class="primary" id="imapply" disabled>Use these players</button></div>
 </div></div>
@@ -520,7 +521,7 @@ function bindAbout(){
 }
 // ---------- paste import ----------
 let impScope=null,impRows=[];
-function openImport(scope){impScope=scope;impRows=[];$('imt').value='';$('imtitle').textContent=scope==='me'?'Paste your squad from the FPL site':`Paste ${st.rivals[+scope.slice(1)].name}'s squad from the FPL site`;$('im').classList.add('on');drawImport();setTimeout(()=>$('imt').focus(),30)}
+function openImport(scope){impScope=scope;impRows=[];$('imt').value='';$('imtitle').textContent=scope==='me'?'Paste your squad from the FPL site':`Paste ${st.rivals[+scope.slice(1)].name}'s squad from the FPL site`;$('imme').style.display=scope==='me'?'flex':'none';if(scope==='me'){$('imbank').value=st.bank;$('imft').value=String(st.ft)}$('im').classList.add('on');drawImport();setTimeout(()=>$('imt').focus(),30)}
 function importIds(){return impRows.map(r=>r.sel)}
 function drawImport(){
   const ids=importIds();
@@ -535,19 +536,26 @@ function drawImport(){
   $('imstat').textContent=iss.length?iss.join('. '):'Looks good: 15 players, positions and clubs valid.';
   $('imapply').disabled=!(ids.length===15&&validSquad(ids));
 }
-$('imt').oninput=()=>{impRows=parsePaste($('imt').value);drawImport()};
+$('imt').oninput=()=>{const t=$('imt').value;impRows=parsePaste(t);
+  if(impScope==='me'){
+    const bm=t.match(/bank[^0-9]{0,20}(\d{1,3}(?:\.\d)?)\s*m?/i);if(bm&&+bm[1]<=30)$('imbank').value=bm[1];
+    const fm=t.match(/free transfers?[^0-9]{0,20}(\d)/i)||t.match(/(\d)\s*free transfers?/i);if(fm&&+fm[1]>=1&&+fm[1]<=5)$('imft').value=fm[1];
+  }
+  drawImport()};
 $('imv').onclick=e=>{const b=e.target.closest('[data-imprem]');if(b){impRows.splice(+b.dataset.imprem,1);drawImport()}};
 $('imv').onchange=e=>{const s=e.target.closest('select[data-impsel]');if(s){impRows[+s.dataset.impsel].sel=+s.value;drawImport()}};
 $('imclose').onclick=$('imcancel').onclick=()=>$('im').classList.remove('on');
 $('im').onclick=e=>{if(e.target===$('im'))$('im').classList.remove('on')};
 $('imapply').onclick=()=>{
   const ids=importIds();scopeSet(impScope,ids);
-  if(impScope==='me'){const old=st.sell||{};st.sell={};ids.forEach(i=>st.sell[i]=old[i]!=null?old[i]:BY.get(i).c)}
+  if(impScope==='me'){const old=st.sell||{};st.sell={};ids.forEach(i=>st.sell[i]=old[i]!=null?old[i]:BY.get(i).c);
+    st.bank=Math.max(0,+$('imbank').value||0);st.ft=Math.min(5,Math.max(1,+$('imft').value||1));st.tab='transfers'}
   else st.rivals[+impScope.slice(1)].open=false;
   $('im').classList.remove('on');save();render();
 };
 document.addEventListener('click',e=>{const b=e.target.closest('[data-act="paste"]');if(b)openImport(b.dataset.scope)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('im').classList.remove('on')});
+$('rf').onclick=()=>openImport('me');
 // ---------- render ----------
 const VIEWS={squad:[viewSquad,bindSquad],transfers:[viewTransfers,bindTransfers],lineup:[viewLineup,bindLineup],chips:[viewChips,bindChips],league:[viewLeague,bindLeague],players:[viewPlayers,bindPlayers],track:[viewTrack,()=>{}],about:[viewAbout,bindAbout]};
 function render(){
