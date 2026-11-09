@@ -72,11 +72,29 @@ for i in range(H):
     comp[i]=tot
 CAL={int(k):v for k,v in json.loads((DATA/'calib.json').read_text()).items()}
 posser=els.element_type-1; a=posser.map(lambda p:CAL[p]['a']); bb=posser.map(lambda p:CAL[p]['b'])
+# v7 (2026-11-09): running per-position bias correction. Frozen snapshots of past gameweeks (log/pred_gwNN.json, 'raw' column) are rebuilt
+# into calibrated values and compared with the real points of regulars (calibrated value > 0.8); the ratio actual/predicted per position
+# scales this week's numbers (clipped 0.85-1.20, needs >= 60 regulars). Walk-forward test: rank corr +0.003-0.006, top-30 +0.1-0.3, MAE -0.003
+# on 2026-27 GW5-10 and on 2023-24..2025-26 GW8+ (small but same sign everywhere). No snapshots yet -> factor 1.
+def bias_factors():
+    num=np.zeros(4); den=np.zeros(4); cnt=np.zeros(4)
+    for fp in sorted((ROOT/'log').glob('pred_gw*.json')):
+        g=int(fp.stem[-2:]); lf=LIVE/f'gw{g}.json'
+        if g>CUR or not lf.exists(): continue
+        act={e['id']:e['stats']['total_points'] for e in json.loads(lf.read_text(encoding='utf8'))['elements']}
+        for p in json.loads(fp.read_text(encoding='utf8'))['players']:
+            r=p.get('raw')
+            if r is None or p['i'] not in act: continue
+            q=p['p']; base=CAL[q]['a']*min(max(r/2,0),1)+CAL[q]['b']*r
+            if base>0.8: num[q]+=act[p['i']]; den[q]+=base; cnt[q]+=1
+    return [float(np.clip(num[q]/den[q],0.85,1.20)) if cnt[q]>=60 else 1.0 for q in range(4)]
+BF=bias_factors(); print('bias factors GK/DEF/MID/FWD:',[round(x,3) for x in BF])
+bfac=posser.map(lambda p:BF[p])
 disc=np.array([1,0.95,0.9,0.85,0.8,0.75])
 for i in range(H):
     els[f'xp_old{i}']=els[f'xp{i}']; els[f'xp_comp{i}']=els.id.map(comp[i]).fillna(0)
     raw=0.25*els[f'xp_old{i}']+0.75*els[f'xp_comp{i}']; els[f'xp_raw{i}']=raw
-    els[f'xp{i}']=(bb*raw+a*np.clip(raw/2,0,1)).clip(lower=0)    # calibrated per position; tiny raw values get no intercept
+    els[f'xp{i}']=((bb*raw+a*np.clip(raw/2,0,1))*bfac).clip(lower=0)    # calibrated per position; tiny raw values get no intercept
 cols=[f'xp{i}' for i in range(H)]
 els['xpH']=(els[cols].values*disc[:H]).sum(1); els['xp_next']=els['xp0']
 els.to_pickle(RAW/'players_model.pkl')
